@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import os
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 try:
@@ -13,7 +12,6 @@ except Exception:
 try:
     from astrbot.api import logger
     from astrbot.api.star import Context, Star
-    from astrbot.api import FunctionTool
     from astrbot.api.event import filter
 except Exception:
     logger = logging.getLogger(__name__)
@@ -21,9 +19,6 @@ except Exception:
     class Star:
         def __init__(self, context):
             self.context = context
-
-    class FunctionTool:
-        pass
 
     class filter:
         @staticmethod
@@ -38,84 +33,14 @@ except Exception:
                 return fn
             return decorator
 
+        @staticmethod
+        def llm_tool(name: str = ""):
+            def decorator(fn):
+                return fn
+            return decorator
+
     class Context:
         pass
-
-
-@dataclass
-class WebSearchTool(FunctionTool):
-    name: str = "web_search"
-    description: str = (
-        "当用户问题涉及最新资讯、热梗、时事、网络流行内容等时效性信息时，"
-        "调用此工具进行联网搜索，补全对现实世界的认知。"
-    )
-    parameters: dict = field(default_factory=lambda: {
-        "type": "object",
-        "properties": {
-            "query": {
-                "type": "string",
-                "description": "用于搜索实时资讯的关键词。",
-            }
-        },
-        "required": ["query"],
-    })
-
-    def __init__(self, config: dict):
-        super().__init__()
-        self.config = config
-
-    async def run(self, event, query: str) -> str:
-        if not self.config.get("enabled", True):
-            return "联网搜索功能已禁用。"
-
-        url = self.config.get("search_api_url", "").strip()
-        api_key = self.config.get("api_key", "").strip()
-        max_results = int(self.config.get("max_results", 3))
-        timeout = aiohttp.ClientTimeout(total=int(self.config.get("timeout", 5))) if aiohttp else None
-
-        if not url:
-            return "搜索失败：未配置搜索 API 地址。"
-
-        if aiohttp is None:
-            return "搜索失败：aiohttp 未安装。"
-
-        headers = {}
-        params = {"q": query, "num": max_results}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-            params["key"] = api_key
-
-        try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, headers=headers, params=params) as resp:
-                    if resp.status != 200:
-                        return f"搜索失败：HTTP {resp.status}"
-                    data = await resp.json()
-        except asyncio.TimeoutError:
-            return "搜索失败：请求超时。"
-        except Exception as e:
-            logger.error(f"联网搜索出错: {e}")
-            return f"搜索失败：{e}"
-
-        return self._refine(data, max_results)
-
-    def _refine(self, data: dict, max_results: int) -> str:
-        results = data.get("results", []) if isinstance(data, dict) else []
-        if not results:
-            return "未找到相关实时信息。"
-
-        lines = []
-        for item in results[:max_results]:
-            title = item.get("title", "")
-            snippet = item.get("snippet", "")
-            link = item.get("url", "")
-            if title or snippet:
-                lines.append(f"- {title}: {snippet} ({link})")
-
-        if not lines:
-            return "未找到可读的实时信息。"
-
-        return "\n".join(["实时检索结果："] + lines)
 
 
 DEFAULT_PROFILE = {
@@ -229,40 +154,6 @@ class PersonalityLearner:
         return False
 
 
-@dataclass
-class RecordUserFactTool(FunctionTool):
-    name: str = "record_user_fact"
-    description: str = (
-        "当你认为用户表达了值得长期记忆的信息（如兴趣、偏好、重要经历、关系、习惯等）时，"
-        "调用此工具将其记录到用户档案中，以便后续对话更了解用户。"
-    )
-    parameters: dict = field(default_factory=lambda: {
-        "type": "object",
-        "properties": {
-            "user_id": {
-                "type": "string",
-                "description": "用户唯一标识。",
-            },
-            "fact": {
-                "type": "string",
-                "description": "需要记录的用户事实，用简洁的一句话描述。",
-            },
-            "category": {
-                "type": "string",
-                "description": "事实类别，如兴趣、偏好、关系、经历等。",
-            },
-        },
-        "required": ["user_id", "fact"],
-    })
-
-    def __init__(self, profile_store: UserProfileStore):
-        super().__init__()
-        self.profile_store = profile_store
-
-    async def run(self, event, user_id: str, fact: str, category: Optional[str] = None) -> str:
-        return self.profile_store.add_fact(user_id, fact, category)
-
-
 class WorldviewMaturityPlugin(Star):
     def __init__(self, context: Context, config: dict):
         super().__init__(context)
@@ -286,9 +177,6 @@ class WorldviewMaturityPlugin(Star):
         self._interaction_counts: Dict[str, int] = {}
 
         if self.enabled:
-            self.context.add_llm_tools(WebSearchTool(config))
-            if self.user_profile_enabled:
-                self.context.add_llm_tools(RecordUserFactTool(self.profile_store))
             logger.info("WorldviewMaturityPlugin 已启用。")
 
     def _get_user_id(self, event) -> Optional[str]:
@@ -297,6 +185,68 @@ class WorldviewMaturityPlugin(Star):
             return str(user_id) if user_id is not None else None
         except Exception:
             return None
+
+    @filter.llm_tool(name="web_search")
+    async def web_search(self, event, query: str) -> str:
+        """当用户问题涉及最新资讯、热梗、时事、网络流行内容等时效性信息时，调用此工具进行联网搜索，补全对现实世界的认知。"""
+        if not self.enabled:
+            return "联网搜索功能已禁用。"
+
+        url = self.config.get("search_api_url", "").strip()
+        api_key = self.config.get("api_key", "").strip()
+        max_results = int(self.config.get("max_results", 3))
+        timeout = aiohttp.ClientTimeout(total=int(self.config.get("timeout", 5))) if aiohttp else None
+
+        if not url:
+            return "搜索失败：未配置搜索 API 地址。"
+
+        if aiohttp is None:
+            return "搜索失败：aiohttp 未安装。"
+
+        headers = {}
+        params = {"q": query, "num": max_results}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+            params["key"] = api_key
+
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url, headers=headers, params=params) as resp:
+                    if resp.status != 200:
+                        return f"搜索失败：HTTP {resp.status}"
+                    data = await resp.json()
+        except asyncio.TimeoutError:
+            return "搜索失败：请求超时。"
+        except Exception as e:
+            logger.error(f"联网搜索出错: {e}")
+            return f"搜索失败：{e}"
+
+        return self._refine_search_results(data, max_results)
+
+    def _refine_search_results(self, data: dict, max_results: int) -> str:
+        results = data.get("results", []) if isinstance(data, dict) else []
+        if not results:
+            return "未找到相关实时信息。"
+
+        lines = []
+        for item in results[:max_results]:
+            title = item.get("title", "")
+            snippet = item.get("snippet", "")
+            link = item.get("url", "")
+            if title or snippet:
+                lines.append(f"- {title}: {snippet} ({link})")
+
+        if not lines:
+            return "未找到可读的实时信息。"
+
+        return "\n".join(["实时检索结果："] + lines)
+
+    @filter.llm_tool(name="record_user_fact")
+    async def record_user_fact(self, event, user_id: str, fact: str, category: Optional[str] = None) -> str:
+        """当你认为用户表达了值得长期记忆的信息（如兴趣、偏好、重要经历、关系、习惯等）时，调用此工具将其记录到用户档案中，以便后续对话更了解用户。"""
+        if not self.user_profile_enabled:
+            return "用户档案功能已禁用。"
+        return self.profile_store.add_fact(user_id, fact, category)
 
     @filter.on_llm_request()
     async def on_llm_request(self, event, req):

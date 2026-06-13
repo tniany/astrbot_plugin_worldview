@@ -1,11 +1,10 @@
-import pytest
 import asyncio
 from unittest.mock import MagicMock
 
 
 class DummyProviderRequest:
     def __init__(self):
-        self.system_prompt = "你是一个 helpful assistant。"
+        self.system_prompt = "You are a helpful assistant."
 
 
 def test_on_llm_request_appends_search_hint(dummy_context, dummy_config):
