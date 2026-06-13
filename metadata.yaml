@@ -1,5 +1,5 @@
 name: realtime_search
 version: 1.0.0
-description: 让 LLM 按需联网检索实时资讯、热梗与时事，补全对地球 Online 的认知，使人格回复更鲜活贴近当下。
-author: tniay
+description: 让 LLM 按需联网检索实时资讯、热梗与时事，补全对地球 Online 的认知；在持续聊天中记住用户偏好、学习表达风格，使人格回复更成熟鲜活贴近当下。
+author: 浅月tniay
 astrbot_version: ">=4.16,<5"
