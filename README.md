@@ -1,4 +1,4 @@
-# astrbot_plugin_LLm_search
+# astrbot_plugin_worldview
 
 让 AstrBot 的 LLM 人格摆脱训练数据截止日期的限制，按需联网检索实时资讯、热梗与时事；同时在持续聊天中记住用户偏好、学习用户表达风格、积累专属知识，让 AI 越来越成熟、越来越懂你。
 
@@ -22,7 +22,7 @@
 在 AstrBot 插件管理中使用以下地址安装：
 
 ```
-https://github.com/tniany/astrbot_plugin_LLm_search
+https://github.com/tniany/astrbot_plugin_worldview
 ```
 
 安装后 AstrBot 会自动安装 `requirements.txt` 中的依赖。
