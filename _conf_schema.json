@@ -1,0 +1,29 @@
+{
+  "enabled": {
+    "description": "是否启用联网搜索功能",
+    "type": "bool",
+    "default": true
+  },
+  "search_api_url": {
+    "description": "搜索 API 地址（需返回 JSON，包含 results 数组）",
+    "type": "string",
+    "default": ""
+  },
+  "api_key": {
+    "description": "搜索 API 的认证密钥",
+    "type": "string",
+    "default": "",
+    "obvious_hint": true,
+    "hint": "请勿将密钥提交到公开仓库"
+  },
+  "max_results": {
+    "description": "每次搜索返回的最大结果条数",
+    "type": "int",
+    "default": 3
+  },
+  "timeout": {
+    "description": "搜索请求超时时间（秒）",
+    "type": "int",
+    "default": 5
+  }
+}
