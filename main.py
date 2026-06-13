@@ -118,40 +118,6 @@ class WebSearchTool(FunctionTool):
         return "\n".join(["实时检索结果："] + lines)
 
 
-@dataclass
-class RecordUserFactTool(FunctionTool):
-    name: str = "record_user_fact"
-    description: str = (
-        "当你认为用户表达了值得长期记忆的信息（如兴趣、偏好、重要经历、关系、习惯等）时，"
-        "调用此工具将其记录到用户档案中，以便后续对话更了解用户。"
-    )
-    parameters: dict = field(default_factory=lambda: {
-        "type": "object",
-        "properties": {
-            "user_id": {
-                "type": "string",
-                "description": "用户唯一标识。",
-            },
-            "fact": {
-                "type": "string",
-                "description": "需要记录的用户事实，用简洁的一句话描述。",
-            },
-            "category": {
-                "type": "string",
-                "description": "事实类别，如兴趣、偏好、关系、经历等。",
-            },
-        },
-        "required": ["user_id", "fact"],
-    })
-
-    def __init__(self, profile_store: UserProfileStore):
-        super().__init__()
-        self.profile_store = profile_store
-
-    async def run(self, event, user_id: str, fact: str, category: Optional[str] = None) -> str:
-        return self.profile_store.add_fact(user_id, fact, category)
-
-
 DEFAULT_PROFILE = {
     "user_id": "",
     "facts": [],
@@ -261,6 +227,40 @@ class PersonalityLearner:
             if ord(char) > 0x1F300:
                 return True
         return False
+
+
+@dataclass
+class RecordUserFactTool(FunctionTool):
+    name: str = "record_user_fact"
+    description: str = (
+        "当你认为用户表达了值得长期记忆的信息（如兴趣、偏好、重要经历、关系、习惯等）时，"
+        "调用此工具将其记录到用户档案中，以便后续对话更了解用户。"
+    )
+    parameters: dict = field(default_factory=lambda: {
+        "type": "object",
+        "properties": {
+            "user_id": {
+                "type": "string",
+                "description": "用户唯一标识。",
+            },
+            "fact": {
+                "type": "string",
+                "description": "需要记录的用户事实，用简洁的一句话描述。",
+            },
+            "category": {
+                "type": "string",
+                "description": "事实类别，如兴趣、偏好、关系、经历等。",
+            },
+        },
+        "required": ["user_id", "fact"],
+    })
+
+    def __init__(self, profile_store: UserProfileStore):
+        super().__init__()
+        self.profile_store = profile_store
+
+    async def run(self, event, user_id: str, fact: str, category: Optional[str] = None) -> str:
+        return self.profile_store.add_fact(user_id, fact, category)
 
 
 class WorldviewMaturityPlugin(Star):
