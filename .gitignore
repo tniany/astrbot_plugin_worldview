@@ -15,3 +15,4 @@ build/
 venv/
 .env
 *.log
+data/worldview_maturity/users/
