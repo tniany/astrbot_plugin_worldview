@@ -1,6 +1,6 @@
 {
   "enabled": {
-    "description": "是否启用联网搜索功能",
+    "description": "是否启用本插件",
     "type": "bool",
     "default": true
   },
@@ -25,5 +25,35 @@
     "description": "搜索请求超时时间（秒）",
     "type": "int",
     "default": 5
+  },
+  "user_profile_enabled": {
+    "description": "是否启用用户档案与自动学习功能",
+    "type": "bool",
+    "default": true
+  },
+  "auto_learn_enabled": {
+    "description": "是否根据用户发言自动微调回复风格",
+    "type": "bool",
+    "default": true
+  },
+  "max_profile_facts": {
+    "description": "单个用户档案最多保存的事实条数",
+    "type": "int",
+    "default": 50
+  },
+  "style_window_size": {
+    "description": "分析用户风格时参考的最近消息条数",
+    "type": "int",
+    "default": 10
+  },
+  "summary_interval": {
+    "description": "每隔多少轮对话自动总结一次用户档案",
+    "type": "int",
+    "default": 5
+  },
+  "profile_data_dir": {
+    "description": "用户档案存储目录（留空则使用默认 data/worldview_maturity/users）",
+    "type": "string",
+    "default": ""
   }
 }

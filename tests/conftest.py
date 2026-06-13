@@ -29,6 +29,11 @@ def dummy_config():
             "api_key": "test-key",
             "max_results": 3,
             "timeout": 5,
+            "user_profile_enabled": True,
+            "auto_learn_enabled": True,
+            "max_profile_facts": 5,
+            "style_window_size": 3,
+            "summary_interval": 2,
         }
     )
 

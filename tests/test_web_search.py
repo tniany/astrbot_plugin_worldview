@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 
 def test_web_search_tool_returns_refined_results(dummy_context, dummy_config):
-    from main import RealtimeSearchPlugin
+    from main import WorldviewMaturityPlugin
 
-    plugin = RealtimeSearchPlugin(dummy_context, dummy_config)
-    tool = dummy_context.tools[0]
+    plugin = WorldviewMaturityPlugin(dummy_context, dummy_config)
+    tool = [t for t in dummy_context.tools if getattr(t, "name", "") == "web_search"][0]
 
     mock_resp = MagicMock()
     mock_resp.status = 200
@@ -40,10 +40,10 @@ class AsyncContextManager:
 
 
 def test_web_search_tool_handles_empty_results(dummy_context, dummy_config):
-    from main import RealtimeSearchPlugin
+    from main import WorldviewMaturityPlugin
 
-    plugin = RealtimeSearchPlugin(dummy_context, dummy_config)
-    tool = dummy_context.tools[0]
+    plugin = WorldviewMaturityPlugin(dummy_context, dummy_config)
+    tool = [t for t in dummy_context.tools if getattr(t, "name", "") == "web_search"][0]
 
     mock_resp = MagicMock()
     mock_resp.status = 200
@@ -58,10 +58,10 @@ def test_web_search_tool_handles_empty_results(dummy_context, dummy_config):
 
 
 def test_web_search_tool_handles_request_failure(dummy_context, dummy_config):
-    from main import RealtimeSearchPlugin
+    from main import WorldviewMaturityPlugin
 
-    plugin = RealtimeSearchPlugin(dummy_context, dummy_config)
-    tool = dummy_context.tools[0]
+    plugin = WorldviewMaturityPlugin(dummy_context, dummy_config)
+    tool = [t for t in dummy_context.tools if getattr(t, "name", "") == "web_search"][0]
 
     async def run():
         with patch("aiohttp.ClientSession.get", side_effect=Exception("network down")):

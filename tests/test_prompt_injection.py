@@ -9,9 +9,9 @@ class DummyProviderRequest:
 
 
 def test_on_llm_request_appends_search_hint(dummy_context, dummy_config):
-    from main import RealtimeSearchPlugin
+    from main import WorldviewMaturityPlugin
 
-    plugin = RealtimeSearchPlugin(dummy_context, dummy_config)
+    plugin = WorldviewMaturityPlugin(dummy_context, dummy_config)
     req = DummyProviderRequest()
     event = MagicMock()
 
@@ -23,10 +23,10 @@ def test_on_llm_request_appends_search_hint(dummy_context, dummy_config):
 
 
 def test_on_llm_request_skips_when_disabled(dummy_context):
-    from main import RealtimeSearchPlugin
+    from main import WorldviewMaturityPlugin
 
     config = {"enabled": False}
-    plugin = RealtimeSearchPlugin(dummy_context, config)
+    plugin = WorldviewMaturityPlugin(dummy_context, config)
     req = DummyProviderRequest()
     original = req.system_prompt
     event = MagicMock()
