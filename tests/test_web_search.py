@@ -3,6 +3,9 @@ import asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
 
 
+pytest.importorskip("aiohttp")
+
+
 def test_web_search_tool_returns_refined_results(dummy_context, dummy_config):
     from main import WorldviewMaturityPlugin
 

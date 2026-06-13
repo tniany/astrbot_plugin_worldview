@@ -1,5 +1,5 @@
 def test_learner_generates_style_hint():
-    from worldview_maturity.personality import PersonalityLearner
+    from main import PersonalityLearner
 
     learner = PersonalityLearner(window_size=3)
     messages = [
@@ -13,7 +13,7 @@ def test_learner_generates_style_hint():
 
 
 def test_learner_returns_empty_for_few_messages():
-    from worldview_maturity.personality import PersonalityLearner
+    from main import PersonalityLearner
 
     learner = PersonalityLearner(window_size=3)
     hint = learner.generate_hint(["你好"])

@@ -18,8 +18,7 @@ class DummyEvent:
 
 
 def test_auto_summary_updates_profile_after_interval(dummy_context, dummy_config):
-    from main import WorldviewMaturityPlugin
-    from worldview_maturity.user_profile import UserProfileStore
+    from main import WorldviewMaturityPlugin, UserProfileStore
 
     tmpdir = tempfile.mkdtemp()
     dummy_config["profile_data_dir"] = tmpdir

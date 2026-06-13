@@ -1,17 +1,45 @@
 import asyncio
+import json
+import logging
 import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-import aiohttp
+try:
+    import aiohttp
+except Exception:
+    aiohttp = None
 
-from astrbot.api import logger
-from astrbot.api.star import Context, Star
-from astrbot.api import FunctionTool
-from astrbot.api.event import filter
+try:
+    from astrbot.api import logger
+    from astrbot.api.star import Context, Star
+    from astrbot.api import FunctionTool
+    from astrbot.api.event import filter
+except Exception:
+    logger = logging.getLogger(__name__)
 
-from worldview_maturity.user_profile import UserProfileStore
-from worldview_maturity.personality import PersonalityLearner
+    class Star:
+        def __init__(self, context):
+            self.context = context
+
+    class FunctionTool:
+        pass
+
+    class filter:
+        @staticmethod
+        def on_llm_request():
+            def decorator(fn):
+                return fn
+            return decorator
+
+        @staticmethod
+        def on_llm_response():
+            def decorator(fn):
+                return fn
+            return decorator
+
+    class Context:
+        pass
 
 
 @dataclass
@@ -43,10 +71,13 @@ class WebSearchTool(FunctionTool):
         url = self.config.get("search_api_url", "").strip()
         api_key = self.config.get("api_key", "").strip()
         max_results = int(self.config.get("max_results", 3))
-        timeout = aiohttp.ClientTimeout(total=int(self.config.get("timeout", 5)))
+        timeout = aiohttp.ClientTimeout(total=int(self.config.get("timeout", 5))) if aiohttp else None
 
         if not url:
             return "搜索失败：未配置搜索 API 地址。"
+
+        if aiohttp is None:
+            return "搜索失败：aiohttp 未安装。"
 
         headers = {}
         params = {"q": query, "num": max_results}
@@ -121,6 +152,117 @@ class RecordUserFactTool(FunctionTool):
         return self.profile_store.add_fact(user_id, fact, category)
 
 
+DEFAULT_PROFILE = {
+    "user_id": "",
+    "facts": [],
+    "preferences": {},
+    "style_summary": "",
+    "interaction_count": 0,
+    "last_summary_text": "",
+}
+
+
+class UserProfileStore:
+    def __init__(self, data_dir: str, max_facts: int = 50):
+        self.data_dir = data_dir
+        self.max_facts = max_facts
+        os.makedirs(self.data_dir, exist_ok=True)
+
+    def _profile_path(self, user_id: str) -> str:
+        safe_id = "".join(c for c in user_id if c.isalnum() or c in ("-", "_"))
+        if not safe_id:
+            safe_id = "unknown"
+        return os.path.join(self.data_dir, f"{safe_id}.json")
+
+    def get(self, user_id: str) -> Dict[str, Any]:
+        path = self._profile_path(user_id)
+        if not os.path.exists(path):
+            profile = {**DEFAULT_PROFILE, "user_id": user_id, "facts": []}
+            self._save(profile)
+            return profile
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                profile = json.load(f)
+        except Exception as e:
+            logger.error(f"读取用户档案失败 ({user_id}): {e}")
+            profile = {**DEFAULT_PROFILE, "user_id": user_id, "facts": []}
+        for key, value in DEFAULT_PROFILE.items():
+            if key == "facts":
+                profile.setdefault(key, [])
+            else:
+                profile.setdefault(key, value)
+        profile["user_id"] = user_id
+        return profile
+
+    def _save(self, profile: Dict[str, Any]) -> None:
+        path = self._profile_path(profile["user_id"])
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(profile, f, ensure_ascii=False, indent=2)
+
+    def add_fact(self, user_id: str, fact: str, category: Optional[str] = None) -> str:
+        if not fact or not fact.strip():
+            return "记录失败：缺少有效事实内容。"
+
+        profile = self.get(user_id)
+        existing = [item["fact"] for item in profile["facts"]]
+        if fact in existing:
+            return "该事实已存在，未重复记录。"
+
+        item = {"fact": fact, "category": category or "general"}
+        profile["facts"].append(item)
+        if len(profile["facts"]) > self.max_facts:
+            profile["facts"] = profile["facts"][-self.max_facts:]
+
+        try:
+            self._save(profile)
+            return "已记录用户事实。"
+        except Exception as e:
+            logger.error(f"写入用户档案失败 ({user_id}): {e}")
+            return f"记录失败：{e}"
+
+    def update_profile(self, user_id: str, updates: Dict[str, Any]) -> None:
+        profile = self.get(user_id)
+        profile.update(updates)
+        self._save(profile)
+
+
+class PersonalityLearner:
+    def __init__(self, window_size: int = 10):
+        self.window_size = window_size
+
+    def generate_hint(self, user_messages: List[str]) -> str:
+        messages = [m for m in user_messages if isinstance(m, str) and m.strip()]
+        if len(messages) < 2:
+            return ""
+
+        recent = messages[-self.window_size:]
+        hints = []
+
+        emoji_ratio = sum(1 for m in recent if self._has_emoji(m)) / len(recent)
+        if emoji_ratio > 0.3:
+            hints.append("用户喜欢使用表情符号，可适当使用 emoji 回应")
+
+        short_ratio = sum(1 for m in recent if len(m) <= 15) / len(recent)
+        if short_ratio > 0.5:
+            hints.append("用户习惯简短回复，回答宜简洁")
+        elif sum(len(m) for m in recent) / len(recent) > 80:
+            hints.append("用户倾向完整表达，回答可适当详细")
+
+        if any(m.endswith(("~", "～", "!", "！")) for m in recent):
+            hints.append("用户语气较活泼，可保持轻松亲切")
+
+        if not hints:
+            return ""
+
+        return "风格适配提示（在保持原有人设基础上）：" + "；".join(hints) + "。"
+
+    def _has_emoji(self, text: str) -> bool:
+        for char in text:
+            if ord(char) > 0x1F300:
+                return True
+        return False
+
+
 class WorldviewMaturityPlugin(Star):
     def __init__(self, context: Context, config: dict):
         super().__init__(context)
@@ -151,7 +293,8 @@ class WorldviewMaturityPlugin(Star):
 
     def _get_user_id(self, event) -> Optional[str]:
         try:
-            return event.get_sender_id()
+            user_id = event.get_sender_id()
+            return str(user_id) if user_id is not None else None
         except Exception:
             return None
 
